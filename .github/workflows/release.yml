@@ -37,7 +37,7 @@ jobs:
       PGPASSWORD: schema_test
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v5
@@ -104,7 +104,7 @@ jobs:
     steps:
       # The release notes live in the repository, so this job needs a
       # checkout of its own. Only that directory is fetched.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           sparse-checkout: .github/release-notes
