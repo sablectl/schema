@@ -58,6 +58,22 @@ describe('renderTable', () => {
     expect(text).toContain('one\\ntwo\\x1b[31m');
   });
 
+  it('escapes a hostile header and aligns on the escaped width', () => {
+    const text = renderTable(
+      [{ header: 'id\u001b[2K\r' }, { header: '\u202Ename' }],
+      [['1', 'x']],
+      options,
+    );
+    const lines = text.split('\n');
+
+    expect(text).not.toContain('\u001b');
+    expect(text).not.toContain('\r');
+    expect(text).not.toContain('\u202E');
+    expect(lines[0]).toBe('id\\x1b[2K\\r  \\u202ename');
+    expect(lines[1]).toBe('-----------  ----------');
+    expect(lines[2]).toBe('1            x');
+  });
+
   it('renders a header and a rule for an empty row set', () => {
     expect(renderTable([{ header: 'Name' }], [], options)).toBe('Name\n----');
   });
@@ -100,6 +116,19 @@ describe('renderFields', () => {
 
   it('escapes control characters in the value', () => {
     expect(renderFields([['A', 'one\ntwo']], plain, '')).toBe('A  one\\ntwo');
+  });
+
+  it('escapes control characters in the key and pads on the result', () => {
+    expect(
+      renderFields(
+        [
+          ['A\u001b[2K', 'b'],
+          ['Bee', 'c'],
+        ],
+        plain,
+        '',
+      ),
+    ).toBe('A\\x1b[2K  b\nBee       c');
   });
 
   it('renders nothing for an empty list', () => {

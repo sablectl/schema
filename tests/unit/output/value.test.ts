@@ -111,6 +111,22 @@ describe('printable', () => {
     expect(printable('a\u007fb')).toBe('a\\x7fb');
   });
 
+  it('escapes C1 controls', () => {
+    expect(printable('a\u009bb')).toBe('a\\u009bb');
+  });
+
+  it('escapes the bidirectional overrides used to disguise names', () => {
+    expect(printable('invoice\u202Egnp.exe')).toBe('invoice\\u202egnp.exe');
+    expect(printable('a\u202Ab')).toBe('a\\u202ab');
+  });
+
+  it('neutralises a line-rewriting sequence', () => {
+    const escaped = printable('evil\u001B[2K\r0 rows');
+    expect(escaped).not.toContain('\u001B');
+    expect(escaped).not.toContain('\r');
+    expect(escaped).toBe('evil\\x1b[2K\\r0 rows');
+  });
+
   it('leaves ordinary text alone', () => {
     expect(printable('ordinary — text')).toBe('ordinary — text');
   });

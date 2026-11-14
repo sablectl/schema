@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createPainter } from '../../../src/output/colour.js';
 import {
   formatConnection,
   formatDatabases,
@@ -409,5 +410,54 @@ describe('formatDiagnostics', () => {
 describe('preview', () => {
   it('escapes and shortens in one step', () => {
     expect(preview('one\ntwo three', 8)).toBe('one\\ntw…');
+  });
+});
+
+describe('terminal escaping of database-supplied text', () => {
+  const hostile = 'evil\u001B[2K\r0 rows';
+
+  it('escapes a hostile column name and cell value in a result', () => {
+    const text = formatQuery(
+      queryOutcome({
+        fields: [{ name: hostile, dataTypeId: 25 }],
+        rows: [[`\u202E${hostile}`]],
+        rowCount: 1,
+      }),
+      formatOptions,
+    );
+
+    expect(text).not.toContain('\u001B');
+    expect(text).not.toContain('\r');
+    expect(text).not.toContain('\u202E');
+    expect(text).toContain('evil\\x1b[2K\\r0 rows');
+    expect(text).toContain('\\u202e');
+  });
+
+  it('escapes a hostile relation name in a heading', () => {
+    const text = formatTable(
+      tableDetail({
+        relation: relationSummary({ schema: 'public', name: hostile }),
+      }),
+      null,
+      formatOptions,
+    );
+
+    expect(text).not.toContain('\u001B');
+    expect(text).not.toContain('\r');
+    expect(text).toContain('evil\\x1b[2K\\r0 rows');
+  });
+
+  it('leaves the painter own colour codes intact', () => {
+    const text = formatQuery(
+      queryOutcome({
+        fields: [{ name: hostile, dataTypeId: 25 }],
+        rows: [['1']],
+        rowCount: 1,
+      }),
+      { painter: createPainter(true), maxCellChars: 120 },
+    );
+
+    expect(text).toContain('\u001B[1m');
+    expect(text).toContain('evil\\x1b[2K\\r0 rows');
   });
 });

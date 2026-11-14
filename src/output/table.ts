@@ -48,20 +48,26 @@ export function renderTable(
   options: TableOptions,
 ): string {
   const indent = options.indent ?? '';
+  // Headers can be database identifiers, so they are escaped exactly as
+  // cells are, and before the widths are measured: alignment is computed
+  // from the text that is actually printed.
+  const headers = columns.map((column) =>
+    truncate(printable(column.header), options.maxCellChars),
+  );
   const cells = rows.map((row) =>
     columns.map((_, index) =>
       truncate(printable(row[index] ?? ''), options.maxCellChars),
     ),
   );
-  const widths = columns.map((column, index) => {
-    let size = width(column.header);
+  const widths = columns.map((_column, index) => {
+    let size = width(headers[index] ?? '');
     for (const row of cells) size = Math.max(size, width(row[index] ?? ''));
     return size;
   });
 
   const header = columns
     .map((column, index) =>
-      padTo(column.header, widths[index] ?? 0, column.align ?? 'left'),
+      padTo(headers[index] ?? '', widths[index] ?? 0, column.align ?? 'left'),
     )
     .join('  ')
     .trimEnd();
@@ -91,13 +97,13 @@ export function renderFields(
   indent = '  ',
 ): string {
   const keyWidth = entries.reduce(
-    (size, [key]) => Math.max(size, width(key)),
+    (size, [key]) => Math.max(size, width(printable(key))),
     0,
   );
   return entries
     .map(
       ([key, value]) =>
-        `${indent}${painter(padTo(key, keyWidth, 'left'), 'dim')}  ${printable(value)}`,
+        `${indent}${painter(padTo(printable(key), keyWidth, 'left'), 'dim')}  ${printable(value)}`,
     )
     .join('\n');
 }

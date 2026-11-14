@@ -71,6 +71,12 @@ export function jsonValue(value: unknown): unknown {
  * Control characters in data must not be able to move the cursor, change
  * the colour or clear the screen. Tabs and newlines are shown as escapes so
  * one row stays on one line.
+ *
+ * Identifiers and cell values come from the database, so a column named
+ * `\u001b[2K\r0 rows` could otherwise rewrite the line above it and fake a
+ * harmless result. C1 controls and the bidirectional overrides are covered
+ * too: the first are control codes in several encodings, the second reorder
+ * text on screen and can disguise a name as another one.
  */
 export function printable(text: string): string {
   let out = '';
@@ -81,6 +87,11 @@ export function printable(text: string): string {
     else if (character === '\t') out += '\\t';
     else if (code < 0x20 || code === 0x7f) {
       out += `\\x${code.toString(16).padStart(2, '0')}`;
+    } else if (
+      (code >= 0x80 && code <= 0x9f) ||
+      (code >= 0x202a && code <= 0x202e)
+    ) {
+      out += `\\u${code.toString(16).padStart(4, '0')}`;
     } else out += character;
   }
   return out;

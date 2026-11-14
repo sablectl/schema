@@ -36,12 +36,16 @@ export interface FormatOptions {
   readonly maxCellChars: number;
 }
 
+// Headings and qualified names carry database identifiers, which are no
+// more trustworthy than cell values. They are escaped here, before the
+// painter adds colour, so the escaping cannot touch our own codes. Table
+// cells and headers are escaped inside the table renderer instead.
 function heading(title: string, painter: Painter): string {
-  return painter(title, 'bold');
+  return painter(printable(title), 'bold');
 }
 
 function qualify(schema: string, name: string): string {
-  return `${maybeQuote(schema)}.${maybeQuote(name)}`;
+  return printable(`${maybeQuote(schema)}.${maybeQuote(name)}`);
 }
 
 function plural(count: number, one: string, many: string): string {
