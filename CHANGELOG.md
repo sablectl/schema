@@ -4,6 +4,17 @@ All notable changes to Schema are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 uses [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- `printable` now also escapes C1 control characters and the Unicode
+  bidirectional overrides, and it is applied to table headers, field keys and
+  headings as well as cell values. Database-supplied identifiers and values
+  could previously rewrite lines already printed to the terminal. Column widths
+  are measured on the escaped text, so alignment is unaffected. JSON and CSV
+  output are unchanged.
+
 ## [1.0.0] — 2026-11-13
 
 First release.
