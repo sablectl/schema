@@ -88,7 +88,7 @@ jobs:
           node dist/bin/schema.js connect --url "$SCHEMA_TEST_URL"
           cd - > /dev/null
           rm -rf "$work"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-files
           path: out/
