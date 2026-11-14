@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20.19', '22', '24']
+
+    # The integration tests can create their own cluster with initdb, but a
+    # service container is cheaper on a runner and is the same server every
+    # time. SCHEMA_TEST_URL makes the suite use it instead.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: schema_test
+          POSTGRES_PASSWORD: schema_test
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U schema_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      SCHEMA_TEST_URL: postgresql://schema_test:schema_test@127.0.0.1:5432/schema_fixture
+      PGPASSWORD: schema_test
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke test the build
+        run: |
+          node dist/bin/schema.js --version
+          node dist/bin/schema.js --help > /dev/null
+          node dist/bin/schema.js connect --url "$SCHEMA_TEST_URL"
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=low
+
+      - name: Audit all dependencies
+        run: npm audit --audit-level=high
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The official action infers a base and head from the event, which has
+      # no meaning for the first push to a repository and makes it fail for a
+      # reason unrelated to secrets. The pinned container scans the whole
+      # history directly, which behaves the same on every event type.
+      - name: Scan full history for verified secrets
+        run: |
+          set -eu
+          docker run --rm -v "$PWD:/repo:ro" \
+            ghcr.io/trufflesecurity/trufflehog:3.90.8 \
+            git file:///repo --results=verified --fail --no-update
